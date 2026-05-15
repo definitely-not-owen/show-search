@@ -138,7 +138,3 @@ show-search seen --forget 8785a6cadd79
 pytest           # offline tests (uses a frozen 19hz HTML fixture)
 pytest -m live   # also hits real 19hz; opt-in
 ```
-
-## Design
-
-See `docs/superpowers/specs/2026-05-15-show-search-design.md` (local; gitignored). In one paragraph: each module has one job — `models` (dataclasses), `config` (TOML), `state` (JSON ledger), `scrape` (HTTP + HTML parse), `filter` (matching), `cli` (orchestration). State is mutated only after a successful scrape so transient failures don't make us forget unseen events.
