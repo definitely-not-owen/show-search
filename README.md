@@ -61,7 +61,7 @@ Example output:
 `~/.config/show-search/config.toml`:
 
 ```toml
-region = "BayArea"                # 19hz regional slug — see https://19hz.info for the full list
+regions = ["BayArea", "LosAngeles"]   # one or more 19hz regional slugs; `region = "X"` also accepted
 genres = ["techno", "dnb", "jungle", "house"]
 artists = ["surgeon", "floating points", "hodge"]  # word-boundary match on title; passes OR with genres
 free_days = ["fri", "sat"]        # day-of-week filter; omit to allow any day
@@ -71,6 +71,8 @@ venue_blocklist = ["The Midway"]
 venue_allowlist = []              # if non-empty, ONLY these venues
 neighborhoods = []                # filter on neighborhood field if you want
 ```
+
+Each match in the JSON output carries a `region` field so the agent knows which city it came from. Cross-region duplicates (same event date+title+venue) are deduped automatically.
 
 For the machine-readable JSON Schema (so an agent can help a user edit this):
 
@@ -134,6 +136,18 @@ show-search seen --forget 8785a6cadd79
 | `show-search seen --forget <id>` | Drop an id from state | 0, 1 |
 
 `show-search check --dry-run` emits matches but skips the state update.
+
+### HTTP caching
+
+19hz.info is community-maintained — we cache the raw HTML to `~/.cache/show-search/<region>.html` for 1 hour by default, so frequent heartbeats don't hammer the site. Flags on `check` and `list`:
+
+- `--cache-dir <path>` — override the cache directory
+- `--cache-ttl-s <int>` — change the TTL (default 3600s)
+- `--no-cache` — skip the cache for this call
+
+### State hygiene
+
+On every `check`, entries in `seen.json` whose event date is in the past are dropped, so the ledger doesn't grow without bound. Legacy entries (pre-0.2 state format) are preserved indefinitely; remove them manually with `seen --forget` if needed.
 
 ## Testing
 

@@ -26,7 +26,7 @@ class Event:
 
 @dataclass
 class Preferences:
-    region: str
+    regions: list[str]
     genres: list[str] = field(default_factory=list)
     artists: list[str] = field(default_factory=list)
     free_days: list[str] = field(default_factory=list)

@@ -16,9 +16,21 @@ class ConfigError(Exception):
 CONFIG_JSON_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "required": ["region"],
+    "anyOf": [
+        {"required": ["region"]},
+        {"required": ["regions"]},
+    ],
     "properties": {
-        "region": {"type": "string", "description": "19hz regional slug, e.g. 'BayArea'."},
+        "region": {
+            "type": "string",
+            "description": "Single 19hz regional slug. Accepted for backwards compat; prefer `regions`.",
+        },
+        "regions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "description": "One or more 19hz regional slugs, e.g. ['BayArea', 'LosAngeles'].",
+        },
         "genres": {"type": "array", "items": {"type": "string"}, "default": []},
         "artists": {
             "type": "array",
@@ -49,8 +61,7 @@ def load_config(path: Path) -> Preferences:
     except tomllib.TOMLDecodeError as e:
         raise ConfigError(f"config parse error in {path}: {e}") from e
 
-    if "region" not in raw or not isinstance(raw["region"], str):
-        raise ConfigError("config missing required string field 'region'")
+    regions = _resolve_regions(raw)
 
     free_days = raw.get("free_days", [])
     bad = [d for d in free_days if d not in VALID_DAYS]
@@ -58,7 +69,7 @@ def load_config(path: Path) -> Preferences:
         raise ConfigError(f"config free_days has invalid day(s): {bad}; valid: {sorted(VALID_DAYS)}")
 
     return Preferences(
-        region=raw["region"],
+        regions=regions,
         genres=list(raw.get("genres", [])),
         artists=list(raw.get("artists", [])),
         free_days=list(free_days),
@@ -68,3 +79,18 @@ def load_config(path: Path) -> Preferences:
         venue_allowlist=list(raw.get("venue_allowlist", [])),
         neighborhoods=list(raw.get("neighborhoods", [])),
     )
+
+
+def _resolve_regions(raw: dict) -> list[str]:
+    if "regions" in raw:
+        regions = raw["regions"]
+        if not isinstance(regions, list) or not all(isinstance(r, str) for r in regions):
+            raise ConfigError("config 'regions' must be a list of strings")
+        if not regions:
+            raise ConfigError("config 'regions' must not be empty")
+        return list(regions)
+    if "region" in raw:
+        if not isinstance(raw["region"], str):
+            raise ConfigError("config 'region' must be a string")
+        return [raw["region"]]
+    raise ConfigError("config missing required field: one of 'region' or 'regions'")

@@ -14,17 +14,23 @@ def write(path: Path, body: str) -> Path:
     return path
 
 
-def test_minimal_config(tmp_path: Path):
+def test_minimal_config_singular_region_back_compat(tmp_path: Path):
     p = write(tmp_path / "c.toml", 'region = "BayArea"\n')
     cfg = load_config(p)
-    assert cfg.region == "BayArea"
+    assert cfg.regions == ["BayArea"]
     assert cfg.genres == []
     assert cfg.horizon_days == 30
 
 
+def test_minimal_config_regions_list(tmp_path: Path):
+    p = write(tmp_path / "c.toml", 'regions = ["BayArea", "LosAngeles"]\n')
+    cfg = load_config(p)
+    assert cfg.regions == ["BayArea", "LosAngeles"]
+
+
 def test_full_config(tmp_path: Path):
     body = """
-region = "BayArea"
+regions = ["BayArea", "LosAngeles"]
 genres = ["techno", "dnb"]
 artists = ["Surgeon", "Floating Points"]
 free_days = ["fri", "sat"]
@@ -35,6 +41,7 @@ venue_allowlist = []
 neighborhoods = ["SoMa"]
 """
     cfg = load_config(write(tmp_path / "c.toml", body))
+    assert cfg.regions == ["BayArea", "LosAngeles"]
     assert cfg.genres == ["techno", "dnb"]
     assert cfg.artists == ["Surgeon", "Floating Points"]
     assert cfg.free_days == ["fri", "sat"]
@@ -55,12 +62,22 @@ def test_missing_region_raises(tmp_path: Path):
         load_config(p)
 
 
+def test_empty_regions_list_raises(tmp_path: Path):
+    p = write(tmp_path / "c.toml", "regions = []\n")
+    with pytest.raises(ConfigError, match="empty"):
+        load_config(p)
+
+
 def test_bad_day_name_raises(tmp_path: Path):
-    p = write(tmp_path / "c.toml", 'region = "BayArea"\nfree_days = ["funday"]\n')
+    p = write(tmp_path / "c.toml",
+              'region = "BayArea"\nfree_days = ["funday"]\n')
     with pytest.raises(ConfigError, match="free_days"):
         load_config(p)
 
 
 def test_schema_has_required_keys():
-    assert CONFIG_JSON_SCHEMA["required"] == ["region"]
+    # anyOf: one of region/regions must be present.
+    assert {"required": ["region"]} in CONFIG_JSON_SCHEMA["anyOf"]
+    assert {"required": ["regions"]} in CONFIG_JSON_SCHEMA["anyOf"]
     assert "genres" in CONFIG_JSON_SCHEMA["properties"]
+    assert "regions" in CONFIG_JSON_SCHEMA["properties"]

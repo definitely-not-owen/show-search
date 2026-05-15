@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from datetime import date
+from pathlib import Path
 from typing import Optional
 
 import requests
@@ -15,6 +17,7 @@ log = logging.getLogger("show_search.scrape")
 REGION_URL = "https://19hz.info/eventlisting_{region}.php"
 USER_AGENT = "show-search/0.1 (+https://github.com/local/show-search)"
 TIMEOUT_S = 20
+DEFAULT_CACHE_TTL_S = 3600
 
 ISO_DATE_RE = re.compile(r"(\d{4})/(\d{1,2})/(\d{1,2})")
 TIME_RE = re.compile(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)", re.IGNORECASE)
@@ -26,7 +29,18 @@ class ScrapeError(Exception):
     pass
 
 
-def fetch_region(region: str, session: Optional[requests.Session] = None) -> str:
+def fetch_region(
+    region: str,
+    session: Optional[requests.Session] = None,
+    cache_dir: Optional[Path] = None,
+    ttl_s: int = DEFAULT_CACHE_TTL_S,
+) -> str:
+    if cache_dir is not None:
+        cached = _read_cache(cache_dir, region, ttl_s)
+        if cached is not None:
+            log.info("cache_hit region=%s", region)
+            return cached
+
     s = session or requests.Session()
     url = REGION_URL.format(region=region)
     try:
@@ -35,7 +49,36 @@ def fetch_region(region: str, session: Optional[requests.Session] = None) -> str
         raise ScrapeError(f"fetch failed: {e}") from e
     if resp.status_code != 200:
         raise ScrapeError(f"fetch non-200: {resp.status_code}")
+
+    if cache_dir is not None:
+        _write_cache(cache_dir, region, resp.text)
     return resp.text
+
+
+def _cache_path(cache_dir: Path, region: str) -> Path:
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", region)
+    return cache_dir / f"{safe}.html"
+
+
+def _read_cache(cache_dir: Path, region: str, ttl_s: int) -> Optional[str]:
+    path = _cache_path(cache_dir, region)
+    if not path.exists():
+        return None
+    age = time.time() - path.stat().st_mtime
+    if age > ttl_s:
+        return None
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _write_cache(cache_dir: Path, region: str, html: str) -> None:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = _cache_path(cache_dir, region)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(html, encoding="utf-8")
+    tmp.replace(path)
 
 
 def parse_events(html: str, today: date) -> list[Event]:

@@ -42,8 +42,8 @@ def test_event_id_changes_when_core_fields_change():
 
 
 def test_preferences_defaults():
-    p = Preferences(region="BayArea")
-    assert p.region == "BayArea"
+    p = Preferences(regions=["BayArea"])
+    assert p.regions == ["BayArea"]
     assert p.genres == []
     assert p.artists == []
     assert p.free_days == []

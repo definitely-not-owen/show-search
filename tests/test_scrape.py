@@ -1,6 +1,11 @@
+import time
 from datetime import date
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from show_search.scrape import REGION_URL, parse_events
+import pytest
+
+from show_search.scrape import REGION_URL, ScrapeError, fetch_region, parse_events
 
 
 def test_region_url_format():
@@ -77,6 +82,62 @@ def test_parse_missing_price_just_age():
     events = parse_events(html, today=date(2026, 1, 1))
     assert events[0].price is None
     assert events[0].age == "21+"
+
+
+def _mock_response(text: str, status: int = 200):
+    resp = MagicMock()
+    resp.status_code = status
+    resp.text = text
+    return resp
+
+
+def test_fetch_writes_cache_on_first_call(tmp_path: Path):
+    session = MagicMock()
+    session.get.return_value = _mock_response("<html>x</html>")
+    out = fetch_region("BayArea", session=session, cache_dir=tmp_path, ttl_s=3600)
+    assert out == "<html>x</html>"
+    assert (tmp_path / "BayArea.html").read_text(encoding="utf-8") == "<html>x</html>"
+    assert session.get.call_count == 1
+
+
+def test_fetch_uses_cache_on_second_call_within_ttl(tmp_path: Path):
+    session = MagicMock()
+    session.get.return_value = _mock_response("<html>fresh</html>")
+    fetch_region("BayArea", session=session, cache_dir=tmp_path, ttl_s=3600)
+    session.get.reset_mock()
+    out = fetch_region("BayArea", session=session, cache_dir=tmp_path, ttl_s=3600)
+    assert out == "<html>fresh</html>"
+    assert session.get.call_count == 0
+
+
+def test_fetch_refreshes_expired_cache(tmp_path: Path):
+    session = MagicMock()
+    session.get.return_value = _mock_response("<html>first</html>")
+    fetch_region("BayArea", session=session, cache_dir=tmp_path, ttl_s=3600)
+    # Backdate mtime so the next call sees it as expired.
+    old = time.time() - 10_000
+    import os
+    os.utime(tmp_path / "BayArea.html", (old, old))
+
+    session.get.return_value = _mock_response("<html>second</html>")
+    out = fetch_region("BayArea", session=session, cache_dir=tmp_path, ttl_s=3600)
+    assert out == "<html>second</html>"
+
+
+def test_fetch_no_cache_dir_always_hits_network(tmp_path: Path):
+    session = MagicMock()
+    session.get.return_value = _mock_response("<html>x</html>")
+    fetch_region("BayArea", session=session, cache_dir=None)
+    fetch_region("BayArea", session=session, cache_dir=None)
+    assert session.get.call_count == 2
+
+
+def test_fetch_non_200_raises_and_does_not_cache(tmp_path: Path):
+    session = MagicMock()
+    session.get.return_value = _mock_response("oops", status=503)
+    with pytest.raises(ScrapeError):
+        fetch_region("BayArea", session=session, cache_dir=tmp_path)
+    assert not (tmp_path / "BayArea.html").exists()
 
 
 def test_parse_skips_rows_missing_iso_date():
