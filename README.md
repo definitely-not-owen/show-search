@@ -61,6 +61,7 @@ Example output:
 ```toml
 region = "BayArea"                # 19hz regional slug — see https://19hz.info for the full list
 genres = ["techno", "dnb", "jungle", "house"]
+artists = ["surgeon", "floating points", "hodge"]  # word-boundary match on title; passes OR with genres
 free_days = ["fri", "sat"]        # day-of-week filter; omit to allow any day
 price_max = 40                    # USD ceiling; omit for unlimited; null-priced events pass through
 horizon_days = 30                 # only consider events within N days

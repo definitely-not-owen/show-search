@@ -45,6 +45,7 @@ def test_preferences_defaults():
     p = Preferences(region="BayArea")
     assert p.region == "BayArea"
     assert p.genres == []
+    assert p.artists == []
     assert p.free_days == []
     assert p.price_max is None
     assert p.horizon_days == 30

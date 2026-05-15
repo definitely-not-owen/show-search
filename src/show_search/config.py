@@ -20,6 +20,12 @@ CONFIG_JSON_SCHEMA: dict[str, Any] = {
     "properties": {
         "region": {"type": "string", "description": "19hz regional slug, e.g. 'BayArea'."},
         "genres": {"type": "array", "items": {"type": "string"}, "default": []},
+        "artists": {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": [],
+            "description": "Artist names; word-boundary substring match against event title. Matches OR with genres.",
+        },
         "free_days": {
             "type": "array",
             "items": {"type": "string", "enum": sorted(VALID_DAYS)},
@@ -54,6 +60,7 @@ def load_config(path: Path) -> Preferences:
     return Preferences(
         region=raw["region"],
         genres=list(raw.get("genres", [])),
+        artists=list(raw.get("artists", [])),
         free_days=list(free_days),
         price_max=raw.get("price_max"),
         horizon_days=int(raw.get("horizon_days", 30)),

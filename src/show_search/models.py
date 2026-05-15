@@ -28,6 +28,7 @@ class Event:
 class Preferences:
     region: str
     genres: list[str] = field(default_factory=list)
+    artists: list[str] = field(default_factory=list)
     free_days: list[str] = field(default_factory=list)
     price_max: Optional[int] = None
     horizon_days: int = 30

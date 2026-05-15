@@ -26,6 +26,7 @@ def test_full_config(tmp_path: Path):
     body = """
 region = "BayArea"
 genres = ["techno", "dnb"]
+artists = ["Surgeon", "Floating Points"]
 free_days = ["fri", "sat"]
 price_max = 40
 horizon_days = 14
@@ -35,6 +36,7 @@ neighborhoods = ["SoMa"]
 """
     cfg = load_config(write(tmp_path / "c.toml", body))
     assert cfg.genres == ["techno", "dnb"]
+    assert cfg.artists == ["Surgeon", "Floating Points"]
     assert cfg.free_days == ["fri", "sat"]
     assert cfg.price_max == 40
     assert cfg.horizon_days == 14

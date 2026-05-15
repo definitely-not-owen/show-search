@@ -76,6 +76,49 @@ def test_allowlist_when_present_excludes_others():
     assert [m.event.venue for m in matches] == ["Public Works"]
 
 
+def test_artist_match_word_boundary():
+    prefs = Preferences(region="BayArea", artists=["Hodge"])
+    matches = apply(
+        [ev(title="Surgeon, Hodge", genres=[]), ev(title="Hodgepodge", genres=[])],
+        prefs, today=TODAY,
+    )
+    assert len(matches) == 1
+    assert matches[0].event.title == "Surgeon, Hodge"
+    assert "artist:hodge" in matches[0].matched_on
+
+
+def test_artist_match_case_insensitive_multi_word():
+    prefs = Preferences(region="BayArea", artists=["Floating Points"])
+    matches = apply([ev(title="floating points live", genres=[])], prefs, today=TODAY)
+    assert len(matches) == 1
+    assert "artist:floating points" in matches[0].matched_on
+
+
+def test_artist_passes_event_that_genre_filter_would_reject():
+    prefs = Preferences(region="BayArea", genres=["techno"], artists=["Surgeon"])
+    pop_event_with_surgeon = ev(title="Surgeon presents", genres=["pop"])
+    matches = apply([pop_event_with_surgeon], prefs, today=TODAY)
+    assert len(matches) == 1
+    assert matches[0].matched_on == ["artist:surgeon"]
+
+
+def test_genre_alone_still_works_when_artist_is_absent():
+    prefs = Preferences(region="BayArea", genres=["techno"], artists=["NeverPlayed"])
+    matches = apply([ev(title="Someone Else", genres=["techno"])], prefs, today=TODAY)
+    assert len(matches) == 1
+    assert matches[0].matched_on == ["genre:techno"]
+
+
+def test_artist_only_config_filters_by_artist():
+    prefs = Preferences(region="BayArea", artists=["Surgeon"])
+    matches = apply(
+        [ev(title="Surgeon b2b X", genres=["random"]),
+         ev(title="Other Show", genres=["techno"])],
+        prefs, today=TODAY,
+    )
+    assert [m.event.title for m in matches] == ["Surgeon b2b X"]
+
+
 def test_neighborhood_filter():
     prefs = Preferences(region="BayArea", neighborhoods=["SoMa"])
     matches = apply(
