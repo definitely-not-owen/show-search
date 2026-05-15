@@ -1,5 +1,7 @@
 # show-search
 
+I love music; especially electronic music. I do not love looking for where such music can be found. Ergo...
+
 A lightweight CLI that crawls [19hz.info](https://19hz.info) and emits **new** electronic music events matching your preferences. Designed to be invoked by an AI agent (OpenClaw, OpenHermes, similar) on its heartbeat — the agent owns the user-comms channel; this tool is just a sensor.
 
 ## How it fits
