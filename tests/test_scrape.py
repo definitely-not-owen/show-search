@@ -7,17 +7,18 @@ def test_region_url_format():
     assert REGION_URL.format(region="BayArea").endswith("eventlisting_BayArea.php")
 
 
-def test_parse_real_fixture_returns_many_events(bay_area_html: str):
-    events = parse_events(bay_area_html, today=date(2026, 5, 15))
-    assert len(events) >= 50
+def test_parse_real_fixture_returns_many_events(regional_html):
+    region, html = regional_html
+    events = parse_events(html, today=date(2026, 5, 15))
+    assert len(events) >= 50, f"{region}: only got {len(events)}"
 
 
-def test_parse_real_fixture_has_well_formed_events(bay_area_html: str):
-    events = parse_events(bay_area_html, today=date(2026, 5, 15))
-    sample = events[:20]
-    for e in sample:
-        assert e.title
-        assert e.venue
+def test_parse_real_fixture_has_well_formed_events(regional_html):
+    region, html = regional_html
+    events = parse_events(html, today=date(2026, 5, 15))
+    for e in events[:20]:
+        assert e.title, f"{region}: empty title"
+        assert e.venue, f"{region}: empty venue for {e.title!r}"
         assert isinstance(e.date, date)
         assert isinstance(e.genres, list)
 
